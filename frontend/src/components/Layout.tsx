@@ -11,6 +11,7 @@ import {
   LogOut,
   UtensilsCrossed,
   ShieldCheck,
+  ChefHat,
 } from "lucide-react";
 import type { Rol } from "@/types/usuario";
 import { Button } from "@/components/ui/button";
@@ -31,13 +32,19 @@ const NAV: NavItem[] = [
     label: "Dashboard",
     icon: LayoutDashboard,
     end: true,
-    roles: ["admin", "cajero", "mesero", "cocinero"],
+    roles: ["admin", "cajero", "mesero"],
+  },
+  {
+    to: "/cocina",
+    label: "Cocina",
+    icon: ChefHat,
+    roles: ["admin", "cocinero"],
   },
   {
     to: "/pedidos",
     label: "Comandas",
     icon: ClipboardList,
-    roles: ["admin", "cajero", "mesero", "cocinero"],
+    roles: ["admin", "cajero", "mesero"],
   },
   {
     to: "/mesas",

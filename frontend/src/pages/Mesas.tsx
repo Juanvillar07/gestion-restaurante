@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Pencil, Trash2, Users, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, ChevronDown, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { api } from "@/lib/api";
 import { canTomarPedidos } from "@/lib/permissions";
 import { ESTADOS_MESA, type EstadoMesa, type Mesa } from "@/types/mesa";
+import type { Pedido } from "@/types/pedido";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +82,29 @@ export default function Mesas() {
       return data;
     },
   });
+
+  // Pedidos activos (abierto / en_cocina / servido) → mesas "trabadas"
+  const pedidosActivosQ = useQuery({
+    queryKey: ["pedidos", "activos"],
+    queryFn: async () => {
+      const { data } = await api.get<Pedido[]>("/api/v1/pedidos", {
+        params: { limit: 200 },
+      });
+      return data.filter(
+        (p) =>
+          p.estado === "abierto" ||
+          p.estado === "en_cocina" ||
+          p.estado === "servido"
+      );
+    },
+    refetchInterval: 15_000,
+  });
+
+  const mesasBloqueadas = useMemo(() => {
+    const s = new Set<number>();
+    (pedidosActivosQ.data ?? []).forEach((p) => s.add(p.id_mesa));
+    return s;
+  }, [pedidosActivosQ.data]);
 
   const mesas = useMemo(() => {
     const list = [...(mesasQ.data ?? [])].sort(
@@ -199,6 +223,7 @@ export default function Mesas() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {mesas.map((m) => {
             const style = ESTADO_STYLE[m.estado];
+            const bloqueada = mesasBloqueadas.has(m.id);
             const clickable =
               (m.estado === "libre" && puedeTomar) || m.estado === "ocupada";
             return (
@@ -210,7 +235,20 @@ export default function Mesas() {
                   clickable && "cursor-pointer hover:shadow-soft"
                 )}
                 onClick={() => clickable && onMesaClick(m)}
+                title={
+                  bloqueada
+                    ? "Mesa con pedidos activos — no se puede cambiar su estado"
+                    : undefined
+                }
               >
+                {bloqueada && (
+                  <div
+                    className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-primary"
+                    title="Tiene pedidos activos"
+                  >
+                    <Lock className="h-3 w-3" />
+                  </div>
+                )}
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   Mesa
                 </div>
@@ -225,12 +263,14 @@ export default function Mesas() {
                   {style.label}
                 </Badge>
                 <div className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 transition group-hover:opacity-100">
-                  <EstadoQuickMenu
-                    current={m.estado}
-                    onSelect={(estado) =>
-                      estadoMut.mutate({ id: m.id, estado })
-                    }
-                  />
+                  {!bloqueada && (
+                    <EstadoQuickMenu
+                      current={m.estado}
+                      onSelect={(estado) =>
+                        estadoMut.mutate({ id: m.id, estado })
+                      }
+                    />
+                  )}
                   {isAdmin && (
                     <>
                       <Button
@@ -245,17 +285,19 @@ export default function Mesas() {
                       >
                         <Pencil className="h-3 w-3" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setToDelete(m);
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </Button>
+                      {!bloqueada && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setToDelete(m);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
@@ -269,6 +311,7 @@ export default function Mesas() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editing={editing}
+        estadoBloqueado={editing ? mesasBloqueadas.has(editing.id) : false}
         onSubmit={(values) =>
           editing
             ? updateMut.mutate({ id: editing.id, values })
@@ -369,12 +412,14 @@ function MesaDialog({
   open,
   onOpenChange,
   editing,
+  estadoBloqueado,
   onSubmit,
   loading,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   editing: Mesa | null;
+  estadoBloqueado: boolean;
   onSubmit: (values: FormValues) => void;
   loading: boolean;
 }) {
@@ -422,6 +467,7 @@ function MesaDialog({
             <Select
               value={estado}
               onValueChange={(v) => form.setValue("estado", v as EstadoMesa)}
+              disabled={estadoBloqueado}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -434,6 +480,12 @@ function MesaDialog({
                 ))}
               </SelectContent>
             </Select>
+            {estadoBloqueado && (
+              <p className="text-xs text-muted-foreground">
+                🔒 La mesa tiene pedidos activos. Cobra o cancela los pedidos
+                antes de cambiar su estado.
+              </p>
+            )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button

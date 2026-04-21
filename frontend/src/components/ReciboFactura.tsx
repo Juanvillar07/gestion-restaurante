@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { formatCOP, formatDateTime } from "@/lib/format";
+import { printIframe } from "@/lib/printIframe";
 import { useAuth } from "@/context/AuthContext";
 import type { Factura, MetodoPago } from "@/types/factura";
 import type { Pedido } from "@/types/pedido";
@@ -345,35 +346,5 @@ function printRecibo({
 </body>
 </html>`;
 
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.position = "fixed";
-  iframe.style.right = "-10000px";
-  iframe.style.bottom = "0";
-  iframe.style.width = "80mm";
-  iframe.style.height = "297mm";
-  iframe.style.border = "0";
-
-  iframe.onload = () => {
-    const win = iframe.contentWindow;
-    if (!win) return;
-    try {
-      win.focus();
-      win.print();
-    } finally {
-      setTimeout(() => {
-        iframe.remove();
-      }, 500);
-    }
-  };
-
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument;
-  if (!doc) {
-    iframe.remove();
-    return;
-  }
-  doc.open();
-  doc.write(html);
-  doc.close();
+  printIframe(html);
 }

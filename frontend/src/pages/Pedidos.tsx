@@ -19,9 +19,11 @@ import { api } from "@/lib/api";
 import { formatCOP, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { canFacturar, canTomarPedidos } from "@/lib/permissions";
+import { printComandaCocina } from "@/lib/printComandaCocina";
 import { useAuth } from "@/context/AuthContext";
 import type { EstadoPedido, Pedido } from "@/types/pedido";
 import type { Mesa } from "@/types/mesa";
+import type { Producto } from "@/types/producto";
 
 const ESTADO_CFG: Record<
   EstadoPedido,
@@ -81,18 +83,43 @@ export default function Pedidos() {
     },
   });
 
+  const productosQ = useQuery({
+    queryKey: ["productos-all"],
+    queryFn: async () => {
+      const { data } = await api.get<Producto[]>("/api/v1/productos", {
+        params: { limit: 500 },
+      });
+      return data;
+    },
+  });
+
   const mesaById = useMemo(() => {
     const m = new Map<number, Mesa>();
     (mesasQ.data ?? []).forEach((x) => m.set(x.id, x));
     return m;
   }, [mesasQ.data]);
 
+  const productoById = useMemo(() => {
+    const m = new Map<number, Producto>();
+    (productosQ.data ?? []).forEach((p) => m.set(p.id, p));
+    return m;
+  }, [productosQ.data]);
+
   const estadoMut = useMutation({
     mutationFn: ({ id, estado }: { id: number; estado: EstadoPedido }) =>
       api
-        .patch(`/api/v1/pedidos/${id}/estado`, { estado })
+        .patch<Pedido>(`/api/v1/pedidos/${id}/estado`, { estado })
         .then((r) => r.data),
-    onSuccess: () => {
+    onSuccess: (pedido, vars) => {
+      // Si acaba de mandarse a cocina, imprimir tirilla
+      if (vars.estado === "en_cocina") {
+        printComandaCocina({
+          pedido,
+          mesaNumero: mesaById.get(pedido.id_mesa)?.numero_mesa ?? pedido.id_mesa,
+          productoById,
+          mesero: user?.nombre,
+        });
+      }
       toast.success("Comanda actualizada");
       qc.invalidateQueries({ queryKey: ["pedidos"] });
       qc.invalidateQueries({ queryKey: ["mesas"] });

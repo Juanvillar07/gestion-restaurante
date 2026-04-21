@@ -20,6 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { formatCOP } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { printComandaCocina } from "@/lib/printComandaCocina";
+import { useAuth } from "@/context/AuthContext";
 import type { Categoria } from "@/types/categoria";
 import type { Producto } from "@/types/producto";
 import type { Mesa } from "@/types/mesa";
@@ -37,6 +39,7 @@ export default function ComandaNueva() {
   const { id_mesa } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const [catActiva, setCatActiva] = useState<number | "todas">("todas");
   const [busqueda, setBusqueda] = useState("");
@@ -139,10 +142,25 @@ export default function ComandaNueva() {
           notas: i.notas || null,
         })),
       };
-      const { data } = await api.post<Pedido>("/api/v1/pedidos", payload);
-      return data;
+      // 1) crea el pedido (en estado abierto)
+      const { data: pedido } = await api.post<Pedido>("/api/v1/pedidos", payload);
+      // 2) lo manda a cocina inmediatamente
+      const { data: enCocina } = await api.patch<Pedido>(
+        `/api/v1/pedidos/${pedido.id}/estado`,
+        { estado: "en_cocina" }
+      );
+      return enCocina;
     },
     onSuccess: (pedido) => {
+      // Imprime la tirilla para la cocina
+      printComandaCocina({
+        pedido,
+        mesaNumero: mesaQ.data?.numero_mesa ?? pedido.id_mesa,
+        productoById: new Map(
+          (productosQ.data ?? []).map((p) => [p.id, p] as const)
+        ),
+        mesero: user?.nombre,
+      });
       toast.success(`Comanda #${pedido.id} enviada a cocina`);
       qc.invalidateQueries({ queryKey: ["pedidos"] });
       qc.invalidateQueries({ queryKey: ["mesas"] });

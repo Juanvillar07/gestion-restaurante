@@ -8,6 +8,7 @@ import {
   Ban,
   CircleDollarSign,
   Plus,
+  Printer,
   Trash2,
   Undo2,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import {
 import { api } from "@/lib/api";
 import { formatCOP, formatDateTime } from "@/lib/format";
 import { canFacturar } from "@/lib/permissions";
+import { printComandaCocina } from "@/lib/printComandaCocina";
 import { useAuth } from "@/context/AuthContext";
 import type { EstadoPedido, Pedido } from "@/types/pedido";
 import type { Producto } from "@/types/producto";
@@ -95,9 +97,19 @@ export default function ComandaDetalle() {
   const estadoMut = useMutation({
     mutationFn: (estado: EstadoPedido) =>
       api
-        .patch(`/api/v1/pedidos/${id}/estado`, { estado })
+        .patch<Pedido>(`/api/v1/pedidos/${id}/estado`, { estado })
         .then((r) => r.data),
-    onSuccess: () => {
+    onSuccess: (pedido, estado) => {
+      if (estado === "en_cocina") {
+        printComandaCocina({
+          pedido,
+          mesaNumero: mesaQ.data?.numero_mesa ?? pedido.id_mesa,
+          productoById: new Map(
+            (productosQ.data ?? []).map((p) => [p.id, p] as const)
+          ),
+          mesero: user?.nombre,
+        });
+      }
       toast.success("Estado actualizado");
       invalidate();
     },
@@ -105,11 +117,32 @@ export default function ComandaDetalle() {
   });
 
   const addMut = useMutation({
-    mutationFn: (items: { id_producto: number; cantidad: number; notas?: string | null }[]) =>
-      api
-        .post(`/api/v1/pedidos/${id}/detalles`, items)
-        .then((r) => r.data),
-    onSuccess: () => {
+    mutationFn: async (items: { id_producto: number; cantidad: number; notas?: string | null }[]) => {
+      // Guarda los IDs previos para identificar qué detalles son la adición
+      const previos = new Set((pedidoQ.data?.detalles ?? []).map((d) => d.id));
+      const { data } = await api.post<Pedido>(
+        `/api/v1/pedidos/${id}/detalles`,
+        items
+      );
+      return { pedido: data, nuevos: data.detalles.filter((d) => !previos.has(d.id)).map((d) => d.id) };
+    },
+    onSuccess: ({ pedido, nuevos }) => {
+      // Si la comanda ya estaba en cocina o servida, la cocina necesita la adición
+      if (
+        nuevos.length > 0 &&
+        (pedido.estado === "en_cocina" || pedido.estado === "servido")
+      ) {
+        printComandaCocina({
+          pedido,
+          mesaNumero: mesaQ.data?.numero_mesa ?? pedido.id_mesa,
+          productoById: new Map(
+            (productosQ.data ?? []).map((p) => [p.id, p] as const)
+          ),
+          mesero: user?.nombre,
+          esAdicion: true,
+          itemsFiltrados: nuevos,
+        });
+      }
       toast.success("Item agregado");
       setAddOpen(false);
       invalidate();
@@ -162,6 +195,24 @@ export default function ComandaDetalle() {
           <Button onClick={() => estadoMut.mutate("en_cocina")}>
             <ChefHat className="mr-2 h-4 w-4" />
             Enviar a cocina
+          </Button>
+        )}
+        {(pedido.estado === "en_cocina" || pedido.estado === "servido") && (
+          <Button
+            variant="outline"
+            onClick={() =>
+              printComandaCocina({
+                pedido,
+                mesaNumero: mesaQ.data?.numero_mesa ?? pedido.id_mesa,
+                productoById: new Map(
+                  (productosQ.data ?? []).map((p) => [p.id, p] as const)
+                ),
+                mesero: user?.nombre,
+              })
+            }
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Reimprimir tirilla
           </Button>
         )}
         {pedido.estado === "en_cocina" && (

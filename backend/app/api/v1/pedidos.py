@@ -110,3 +110,37 @@ def eliminar_detalle(
         return crud.remove_detalle(db, pedido, detalle_id)
     except PedidoError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+
+
+@router.post(
+    "/{pedido_id}/marcar-listo",
+    response_model=PedidoOut,
+    dependencies=[
+        Depends(
+            require_role(
+                RolUsuario.admin,
+                RolUsuario.cajero,
+                RolUsuario.mesero,
+                RolUsuario.cocinero,
+            )
+        )
+    ],
+)
+def marcar_listo(pedido_id: int, db: Session = Depends(get_db)):
+    """Transición acotada en_cocina → servido, permitida al cocinero.
+
+    Endpoint específico para el flujo del KDS: el cocinero sólo puede
+    anunciar que terminó un plato; no puede revertir, cancelar ni nada más.
+    """
+    pedido = crud.get(db, pedido_id)
+    if not pedido:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pedido no encontrado")
+    if pedido.estado != EstadoPedido.en_cocina:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Solo pedidos en cocina pueden marcarse como listos",
+        )
+    try:
+        return crud.cambiar_estado(db, pedido, EstadoPedido.servido)
+    except PedidoError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))

@@ -7,10 +7,11 @@ import type { Rol } from "@/types/usuario";
  * es la fuente de verdad; este archivo sólo decide qué se muestra en la UI.
  */
 export const ROUTE_ROLES: Record<string, Rol[]> = {
-  "/": ["admin", "cajero", "mesero", "cocinero"],
-  "/pedidos": ["admin", "cajero", "mesero", "cocinero"],
-  "/pedidos/nueva": ["admin", "cajero", "mesero"], // cocinero no toma pedidos
-  "/pedidos/:id": ["admin", "cajero", "mesero", "cocinero"],
+  "/": ["admin", "cajero", "mesero", "cocinero"], // cocinero redirige a /cocina
+  "/cocina": ["admin", "cocinero"],
+  "/pedidos": ["admin", "cajero", "mesero"],
+  "/pedidos/nueva": ["admin", "cajero", "mesero"],
+  "/pedidos/:id": ["admin", "cajero", "mesero"],
   "/mesas": ["admin", "cajero", "mesero"],
   "/facturas": ["admin", "cajero"],
   "/inventario": ["admin", "cajero"],

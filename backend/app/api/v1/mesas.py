@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_role
 from app.crud import mesa as crud
+from app.crud.mesa import MesaError
 from app.models.enums import RolUsuario
 from app.schemas.mesa import (
     MesaCreate,
@@ -67,7 +68,10 @@ def actualizar(mesa_id: int, data: MesaUpdate, db: Session = Depends(get_db)):
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "Ya existe una mesa con ese número"
             )
-    return crud.update(db, obj, data)
+    try:
+        return crud.update(db, obj, data)
+    except MesaError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
 @router.patch(
@@ -87,7 +91,10 @@ def cambiar_estado(
     obj = crud.get(db, mesa_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Mesa no encontrada")
-    return crud.cambiar_estado(db, obj, data.estado)
+    try:
+        return crud.cambiar_estado(db, obj, data.estado)
+    except MesaError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
 @router.delete(
@@ -99,5 +106,8 @@ def eliminar(mesa_id: int, db: Session = Depends(get_db)):
     obj = crud.get(db, mesa_id)
     if not obj:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Mesa no encontrada")
-    crud.delete(db, obj)
+    try:
+        crud.delete(db, obj)
+    except MesaError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
     return None
