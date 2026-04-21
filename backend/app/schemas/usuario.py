@@ -26,3 +26,13 @@ class UsuarioOut(UsuarioBase):
 class UsuarioLogin(BaseModel):
     username: str
     password: str
+
+
+class UsuarioUpdate(BaseModel):
+    nombre: str | None = Field(default=None, min_length=1, max_length=120)
+    rol: RolUsuario | None = None
+    password: str | None = Field(default=None, min_length=6, max_length=128)
+
+
+class UsuarioActivoUpdate(BaseModel):
+    activo: bool

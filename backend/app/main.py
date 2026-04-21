@@ -12,6 +12,7 @@ from app.api.v1 import inventario as inventario_router
 from app.api.v1 import mesas as mesas_router
 from app.api.v1 import pedidos as pedidos_router
 from app.api.v1 import productos as productos_router
+from app.api.v1 import usuarios as usuarios_router
 from app.core.config import settings
 from app.core.database import get_db
 
@@ -41,6 +42,7 @@ def health_db(db: Session = Depends(get_db)):
 
 
 app.include_router(auth_router.router)
+app.include_router(usuarios_router.router)
 app.include_router(categorias_router.router)
 app.include_router(productos_router.router)
 app.include_router(inventario_router.router)

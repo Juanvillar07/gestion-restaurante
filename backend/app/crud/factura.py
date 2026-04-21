@@ -54,9 +54,12 @@ def facturar_pedido(
         raise FacturacionError("El pedido ya tiene factura emitida")
 
     try:
-        subtotal = Decimal(pedido.total).quantize(Decimal("0.01"))
-        impuestos = (subtotal * IVA).quantize(Decimal("0.01"))
-        total = (subtotal + impuestos).quantize(Decimal("0.01"))
+        # En Colombia los restaurantes cobran al público con IVA incluido.
+        # pedido.total ya es el valor que el cliente vio y aceptó, así que
+        # desglosamos el IVA hacia atrás: base + IVA(base) = total.
+        total = Decimal(pedido.total).quantize(Decimal("0.01"))
+        subtotal = (total / (Decimal("1") + IVA)).quantize(Decimal("0.01"))
+        impuestos = (total - subtotal).quantize(Decimal("0.01"))
 
         factura = Factura(
             id_pedido=pedido.id,

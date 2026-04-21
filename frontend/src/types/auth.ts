@@ -1,13 +1,6 @@
-export type Rol = "admin" | "cajero" | "mesero" | "cocinero";
+import type { Rol, Usuario } from "./usuario";
 
-export interface Usuario {
-  id: number;
-  nombre: string;
-  username: string;
-  rol: Rol;
-  activo: boolean;
-  created_at: string;
-}
+export type { Rol, Usuario };
 
 export interface Token {
   access_token: string;

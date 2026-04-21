@@ -37,11 +37,7 @@ def obtener(
     response_model=ClienteOut,
     status_code=status.HTTP_201_CREATED,
     dependencies=[
-        Depends(
-            require_role(
-                RolUsuario.admin, RolUsuario.cajero, RolUsuario.mesero
-            )
-        )
+        Depends(require_role(RolUsuario.admin, RolUsuario.cajero))
     ],
 )
 def crear(data: ClienteCreate, db: Session = Depends(get_db)):

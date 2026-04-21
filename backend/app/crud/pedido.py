@@ -12,11 +12,20 @@ from app.models.producto import Producto
 from app.schemas.pedido import DetalleCreate, PedidoCreate
 
 
-# Transiciones de estado permitidas
+# Transiciones de estado permitidas.
+# Incluye reversas seguras para corregir errores del mesero:
+#  - en_cocina → abierto (se mandó a cocina por error)
+#  - servido   → en_cocina (se marcó servido por error)
+# No se permite revertir pagado ni cancelado: uno ya emitió factura y el otro
+# ya repuso inventario.
 TRANSICIONES: dict[EstadoPedido, set[EstadoPedido]] = {
     EstadoPedido.abierto: {EstadoPedido.en_cocina, EstadoPedido.cancelado},
-    EstadoPedido.en_cocina: {EstadoPedido.servido, EstadoPedido.cancelado},
-    EstadoPedido.servido: {EstadoPedido.pagado},
+    EstadoPedido.en_cocina: {
+        EstadoPedido.abierto,
+        EstadoPedido.servido,
+        EstadoPedido.cancelado,
+    },
+    EstadoPedido.servido: {EstadoPedido.en_cocina, EstadoPedido.pagado},
     EstadoPedido.pagado: set(),
     EstadoPedido.cancelado: set(),
 }
