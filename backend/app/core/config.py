@@ -3,10 +3,9 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _resolve_database_url() -> str:
-    url = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL") or ""
+def _normalize_mysql_url(url: str) -> str:
     if url.startswith("mysql://"):
-        url = "mysql+pymysql://" + url[len("mysql://") :]
+        return "mysql+pymysql://" + url[len("mysql://") :]
     return url
 
 
@@ -26,5 +25,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
 if not settings.DATABASE_URL:
-    settings.DATABASE_URL = _resolve_database_url()
+    settings.DATABASE_URL = os.getenv("MYSQL_URL", "")
+
+settings.DATABASE_URL = _normalize_mysql_url(settings.DATABASE_URL)
