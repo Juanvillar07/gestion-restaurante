@@ -164,7 +164,7 @@ export default function Productos() {
 
       <Card className="mb-4 shadow-card">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <div className="relative flex-1 min-w-[240px]">
+          <div className="relative w-full flex-1 sm:min-w-[240px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar por nombre…"
@@ -173,7 +173,7 @@ export default function Productos() {
               className="pl-9"
             />
           </div>
-          <div className="w-56">
+          <div className="w-full sm:w-56">
             <Select value={filtroCat} onValueChange={setFiltroCat}>
               <SelectTrigger>
                 <SelectValue placeholder="Categoría" />
@@ -201,8 +201,8 @@ export default function Productos() {
       </Card>
 
       <Card className="shadow-card">
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="overflow-x-auto p-0">
+          <Table className="min-w-[720px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>

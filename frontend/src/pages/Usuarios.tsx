@@ -177,7 +177,7 @@ export default function Usuarios() {
         }
       />
 
-      <div className="grid gap-3 mb-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {ROLES.map((r) => (
           <Card key={r} className="shadow-card">
             <CardContent className="flex items-start gap-3 p-4">
@@ -197,7 +197,7 @@ export default function Usuarios() {
 
       <Card className="mb-4 shadow-card">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <div className="relative flex-1 min-w-[240px]">
+          <div className="relative w-full flex-1 sm:min-w-[240px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar por nombre o usuario…"
@@ -206,7 +206,7 @@ export default function Usuarios() {
               className="pl-9"
             />
           </div>
-          <div className="w-56">
+          <div className="w-full sm:w-56">
             <Select value={filtroRol} onValueChange={setFiltroRol}>
               <SelectTrigger>
                 <SelectValue placeholder="Rol" />
@@ -234,8 +234,8 @@ export default function Usuarios() {
       </Card>
 
       <Card className="shadow-card">
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="overflow-x-auto p-0">
+          <Table className="min-w-[780px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Usuario</TableHead>

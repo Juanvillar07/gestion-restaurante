@@ -46,6 +46,7 @@ export default function ComandaNueva() {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [observaciones, setObservaciones] = useState("");
   const [notaItemId, setNotaItemId] = useState<number | null>(null);
+  const [carritoAbierto, setCarritoAbierto] = useState(false);
 
   const mesaQ = useQuery({
     queryKey: ["mesa", id_mesa],
@@ -180,9 +181,9 @@ export default function ComandaNueva() {
   };
 
   return (
-    <div className="-mx-6 -my-6 flex h-[calc(100vh-0px)] flex-col lg:-mx-8 lg:-my-8">
-      <header className="flex items-center justify-between border-b border-border bg-card px-6 py-3">
-        <div className="flex items-center gap-3">
+    <div className="-mx-4 -my-4 flex h-[calc(100vh-3.5rem)] flex-col sm:-mx-6 sm:-my-6 lg:-mx-8 lg:-my-8 lg:h-screen">
+      <header className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -190,9 +191,9 @@ export default function ComandaNueva() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
+          <div className="min-w-0">
             <div className="text-xs text-muted-foreground">Nueva comanda</div>
-            <div className="text-lg font-bold">
+            <div className="truncate text-lg font-bold">
               Mesa #{mesaQ.data?.numero_mesa ?? "…"}
               <span className="ml-2 text-xs font-normal text-muted-foreground">
                 · cap. {mesaQ.data?.capacidad ?? "—"}
@@ -200,18 +201,32 @@ export default function ComandaNueva() {
             </div>
           </div>
         </div>
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 md:flex lg:flex">
           <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm">
             <b>{totalItems}</b> items ·{" "}
             <b className="text-primary">{formatCOP(total)}</b>
           </span>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCarritoAbierto(true)}
+          className="relative shrink-0 lg:hidden"
+        >
+          <ShoppingCart className="mr-2 h-4 w-4" />
+          <span className="font-semibold">{formatCOP(total)}</span>
+          {totalItems > 0 && (
+            <Badge className="absolute -right-2 -top-2 h-5 min-w-[20px] justify-center px-1 text-[10px]">
+              {totalItems}
+            </Badge>
+          )}
+        </Button>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex items-center gap-3 border-b border-border bg-card px-6 py-3">
+          <div className="flex items-center gap-3 border-b border-border bg-card px-4 py-3 sm:px-6">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -223,7 +238,7 @@ export default function ComandaNueva() {
             </div>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto border-b border-border bg-card px-6 py-3">
+          <div className="flex gap-2 overflow-x-auto border-b border-border bg-card px-4 py-3 sm:px-6">
             <CatChip
               active={catActiva === "todas"}
               onClick={() => setCatActiva("todas")}
@@ -239,7 +254,7 @@ export default function ComandaNueva() {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             {productosQ.isLoading ? (
               <p className="text-sm text-muted-foreground">Cargando…</p>
             ) : productosFiltrados.length === 0 ? (
@@ -247,7 +262,7 @@ export default function ComandaNueva() {
                 Sin productos disponibles
               </p>
             ) : (
-              <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
                 {productosFiltrados.map((p) => {
                   const enCarrito = carrito.find((i) => i.id_producto === p.id);
                   return (
@@ -283,7 +298,30 @@ export default function ComandaNueva() {
           </div>
         </div>
 
-        <aside className="flex w-full max-w-sm flex-col border-l border-border bg-card">
+        {carritoAbierto && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            onClick={() => setCarritoAbierto(false)}
+            aria-hidden
+          />
+        )}
+
+        <aside
+          className={cn(
+            "fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-card transition-transform duration-200 lg:static lg:translate-x-0",
+            carritoAbierto ? "translate-x-0" : "translate-x-full lg:translate-x-0"
+          )}
+        >
+          <div className="flex items-center justify-end border-b border-border px-5 py-2 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setCarritoAbierto(false)}
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              aria-label="Cerrar carrito"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
           <div className="border-b border-border px-5 py-4">
             <div className="flex items-center gap-2">
               <ShoppingCart className="h-4 w-4 text-primary" />

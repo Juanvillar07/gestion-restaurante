@@ -205,8 +205,8 @@ export default function Facturas() {
           <CardHeader>
             <CardTitle>Facturas de hoy</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <Table>
+          <CardContent className="overflow-x-auto p-0">
+            <Table className="min-w-[520px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Número</TableHead>

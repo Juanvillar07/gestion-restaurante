@@ -119,7 +119,7 @@ export default function Inventario() {
 
       <Card className="mb-4 shadow-card">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
-          <div className="relative flex-1 min-w-[240px]">
+          <div className="relative w-full flex-1 sm:min-w-[240px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar producto…"
@@ -142,8 +142,8 @@ export default function Inventario() {
       </Card>
 
       <Card className="shadow-card">
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="overflow-x-auto p-0">
+          <Table className="min-w-[820px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Producto</TableHead>

@@ -138,8 +138,8 @@ export default function Clientes() {
       </Card>
 
       <Card className="shadow-card">
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="overflow-x-auto p-0">
+          <Table className="min-w-[760px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>

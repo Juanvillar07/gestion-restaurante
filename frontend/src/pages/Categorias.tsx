@@ -112,8 +112,8 @@ export default function Categorias() {
       />
 
       <Card className="shadow-card">
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="overflow-x-auto p-0">
+          <Table className="min-w-[640px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>

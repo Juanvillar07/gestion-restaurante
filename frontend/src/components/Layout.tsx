@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Utensils,
@@ -12,6 +13,8 @@ import {
   UtensilsCrossed,
   ShieldCheck,
   ChefHat,
+  Menu,
+  X,
 } from "lucide-react";
 import type { Rol } from "@/types/usuario";
 import { Button } from "@/components/ui/button";
@@ -78,6 +81,21 @@ const NAV: NavItem[] = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
 
   const onLogout = () => {
     logout();
@@ -95,7 +113,20 @@ export default function Layout() {
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <aside className="flex w-64 flex-col border-r border-border bg-card">
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-card transition-transform duration-200 lg:static lg:translate-x-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
         <div className="flex h-16 items-center gap-3 border-b border-border px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sgr-gradient text-white shadow-soft">
             <UtensilsCrossed className="h-4 w-4" />
@@ -106,9 +137,17 @@ export default function Layout() {
               Gestión de Restaurante
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground lg:hidden"
+            aria-label="Cerrar menú"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        <nav className="flex-1 space-y-0.5 p-3">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
           {NAV.filter((item) => user && item.roles.includes(user.rol)).map(
             ({ to, label, icon: Icon, end }) => (
             <NavLink
@@ -156,11 +195,30 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-x-hidden p-6 lg:p-8">
-        <div className="mx-auto max-w-7xl animate-fade-in">
-          <Outlet />
-        </div>
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            aria-label="Abrir menú"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sgr-gradient text-white shadow-soft">
+              <UtensilsCrossed className="h-4 w-4" />
+            </div>
+            <div className="text-sm font-bold text-foreground">SGR</div>
+          </div>
+        </header>
+
+        <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
+          <div className="mx-auto max-w-7xl animate-fade-in">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
