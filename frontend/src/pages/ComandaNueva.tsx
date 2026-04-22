@@ -192,7 +192,7 @@ export default function ComandaNueva() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">Nueva comanda</div>
+            <div className="text-xs text-muted-foreground">Nuevo pedido</div>
             <div className="truncate text-lg font-bold">
               Mesa #{mesaQ.data?.numero_mesa ?? "…"}
               <span className="ml-2 text-xs font-normal text-muted-foreground">
