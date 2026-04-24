@@ -1,7 +1,19 @@
-import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { CircleDollarSign, Receipt, ChevronRight } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CircleDollarSign,
+  Receipt,
+  Search,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -36,6 +49,7 @@ import { formatCOP, formatDateTime, formatTime } from "@/lib/format";
 import {
   METODOS_PAGO,
   type Factura,
+  type FacturasPaginadas,
   type MetodoPago,
 } from "@/types/factura";
 import type { Pedido } from "@/types/pedido";
@@ -57,6 +71,18 @@ const METODO_LABEL: Record<MetodoPago, string> = {
   daviplata: "Daviplata",
 };
 
+const PAGE_SIZE = 10;
+const METODO_ALL = "__all__";
+
+function useDebounced<T>(value: T, delay = 350): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(id);
+  }, [value, delay]);
+  return v;
+}
+
 export default function Facturas() {
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,6 +91,18 @@ export default function Facturas() {
   const [reciboNuevo, setReciboNuevo] = useState(false);
 
   const pedidoDeep = searchParams.get("pedido");
+
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [numeroFactura, setNumeroFactura] = useState("");
+  const [metodoPago, setMetodoPago] = useState<MetodoPago | "">("");
+  const [page, setPage] = useState(1);
+
+  const numeroFacturaDebounced = useDebounced(numeroFactura, 350);
+
+  useEffect(() => {
+    setPage(1);
+  }, [fechaDesde, fechaHasta, numeroFacturaDebounced, metodoPago]);
 
   const servidosQ = useQuery({
     queryKey: ["pedidos", "servidos"],
@@ -86,13 +124,37 @@ export default function Facturas() {
   });
 
   const facturasHoyQ = useQuery({
-    queryKey: ["facturas", hoyISO()],
+    queryKey: ["facturas", "hoy", hoyISO()],
     queryFn: async () => {
-      const { data } = await api.get<Factura[]>("/api/v1/facturas", {
+      const { data } = await api.get<FacturasPaginadas>("/api/v1/facturas", {
         params: { fecha: hoyISO(), limit: 500 },
       });
       return data;
     },
+  });
+
+  const historicoParams = useMemo(() => {
+    const params: Record<string, string | number> = {
+      skip: (page - 1) * PAGE_SIZE,
+      limit: PAGE_SIZE,
+    };
+    if (fechaDesde) params.fecha_desde = fechaDesde;
+    if (fechaHasta) params.fecha_hasta = fechaHasta;
+    const num = numeroFacturaDebounced.trim();
+    if (num) params.numero_factura = num;
+    if (metodoPago) params.metodo_pago = metodoPago;
+    return params;
+  }, [page, fechaDesde, fechaHasta, numeroFacturaDebounced, metodoPago]);
+
+  const historicoQ = useQuery({
+    queryKey: ["facturas", "historico", historicoParams],
+    queryFn: async () => {
+      const { data } = await api.get<FacturasPaginadas>("/api/v1/facturas", {
+        params: historicoParams,
+      });
+      return data;
+    },
+    placeholderData: keepPreviousData,
   });
 
   useEffect(() => {
@@ -124,16 +186,33 @@ export default function Facturas() {
       toast.error(e.response?.data?.detail ?? "No se pudo facturar"),
   });
 
-  const totalHoy = (facturasHoyQ.data ?? []).reduce(
-    (acc, f) => acc + Number(f.total),
-    0
+  const facturasHoy = facturasHoyQ.data?.items ?? [];
+  const totalHoy = facturasHoy.reduce((acc, f) => acc + Number(f.total), 0);
+  const countHoy = facturasHoyQ.data?.total ?? 0;
+
+  const historicoItems = historicoQ.data?.items ?? [];
+  const historicoTotal = historicoQ.data?.total ?? 0;
+  const totalPaginas = Math.max(1, Math.ceil(historicoTotal / PAGE_SIZE));
+
+  const hayFiltros = !!(
+    fechaDesde ||
+    fechaHasta ||
+    numeroFactura.trim() ||
+    metodoPago
   );
+
+  const limpiarFiltros = () => {
+    setFechaDesde("");
+    setFechaHasta("");
+    setNumeroFactura("");
+    setMetodoPago("");
+  };
 
   return (
     <div>
       <PageHeader
         title="Facturación"
-        description="Cobro de comandas servidas e histórico de facturas del día"
+        description="Cobro de comandas servidas e histórico de facturas"
       />
 
       <div className="grid gap-4 mb-6 sm:grid-cols-3">
@@ -144,7 +223,7 @@ export default function Facturas() {
         />
         <KpiSimple
           title="Facturas hoy"
-          value={String(facturasHoyQ.data?.length ?? 0)}
+          value={String(countHoy)}
           icon={<Receipt className="h-4 w-4" />}
         />
         <KpiSimple
@@ -155,108 +234,212 @@ export default function Facturas() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Comandas por cobrar</CardTitle>
+      {(servidosQ.isLoading || (servidosQ.data?.length ?? 0) > 0) && (
+        <Card className="shadow-card mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">Comandas por cobrar</CardTitle>
+              <Badge variant="secondary">{servidosQ.data?.length ?? 0}</Badge>
+            </div>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent>
             {servidosQ.isLoading ? (
-              <p className="px-6 pb-6 text-sm text-muted-foreground">Cargando…</p>
-            ) : (servidosQ.data?.length ?? 0) === 0 ? (
-              <p className="px-6 pb-6 text-sm text-muted-foreground">
-                No hay comandas servidas pendientes de pago
-              </p>
+              <p className="text-sm text-muted-foreground">Cargando…</p>
             ) : (
-              <ul className="divide-y divide-border">
+              <div className="flex flex-wrap gap-2">
                 {servidosQ.data!.map((p) => (
-                  <li
+                  <button
                     key={p.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3 transition hover:bg-muted/30"
+                    type="button"
+                    onClick={() => setFacturando(p)}
+                    className="group flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2 text-left shadow-sm transition hover:border-primary hover:bg-primary/5"
                   >
-                    <div>
-                      <div className="text-sm font-semibold">
-                        Mesa #{mesaById.get(p.id_mesa)?.numero_mesa ?? p.id_mesa}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        #{p.id} · {formatTime(p.created_at)} · {p.detalles.length} items
-                      </div>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-sm font-bold text-primary">
+                      {mesaById.get(p.id_mesa)?.numero_mesa ?? p.id_mesa}
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold text-primary">
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        Mesa · #{p.id}
+                      </span>
+                      <span className="font-bold text-primary">
                         {formatCOP(p.total)}
-                      </div>
-                      <Button
-                        size="sm"
-                        className="mt-1"
-                        onClick={() => setFacturando(p)}
-                      >
-                        Cobrar <ChevronRight className="ml-1 h-3 w-3" />
-                      </Button>
+                      </span>
                     </div>
-                  </li>
+                    <ChevronRight className="ml-1 h-4 w-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </button>
                 ))}
-              </ul>
+              </div>
             )}
           </CardContent>
         </Card>
+      )}
 
+      <div className="mx-auto max-w-5xl">
         <Card className="shadow-card">
           <CardHeader>
-            <CardTitle>Facturas de hoy</CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle>Histórico de facturas</CardTitle>
+              {hayFiltros && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={limpiarFiltros}
+                  className="h-8"
+                >
+                  <X className="mr-1 h-3 w-3" />
+                  Limpiar filtros
+                </Button>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            <Table className="min-w-[520px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Hora</TableHead>
-                  <TableHead>Método</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {facturasHoyQ.isLoading ? (
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Desde</Label>
+                <Input
+                  type="date"
+                  value={fechaDesde}
+                  max={fechaHasta || undefined}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Hasta</Label>
+                <Input
+                  type="date"
+                  value={fechaHasta}
+                  min={fechaDesde || undefined}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Número</Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    className="pl-8"
+                    placeholder="F-00000001"
+                    value={numeroFactura}
+                    onChange={(e) => setNumeroFactura(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Método de pago</Label>
+                <Select
+                  value={metodoPago === "" ? METODO_ALL : metodoPago}
+                  onValueChange={(v) =>
+                    setMetodoPago(v === METODO_ALL ? "" : (v as MetodoPago))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={METODO_ALL}>Todos</SelectItem>
+                    {METODOS_PAGO.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {METODO_LABEL[m]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table className="min-w-[620px]">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
-                      Cargando…
-                    </TableCell>
+                    <TableHead>Número</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Método</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
                   </TableRow>
-                ) : (facturasHoyQ.data?.length ?? 0) === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
-                      Aún no hay facturas hoy
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  facturasHoyQ.data!.map((f) => (
-                    <TableRow
-                      key={f.id}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setRecibo(f);
-                        setReciboNuevo(false);
-                      }}
-                    >
-                      <TableCell className="font-mono font-medium">
-                        {f.numero_factura}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatTime(f.fecha_emision)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {METODO_LABEL[f.metodo_pago]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {formatCOP(f.total)}
+                </TableHeader>
+                <TableBody>
+                  {historicoQ.isLoading ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className="text-center text-sm text-muted-foreground"
+                      >
+                        Cargando…
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : historicoItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className="text-center text-sm text-muted-foreground"
+                      >
+                        {hayFiltros
+                          ? "No hay facturas que coincidan con los filtros"
+                          : "Aún no hay facturas registradas"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    historicoItems.map((f) => (
+                      <TableRow
+                        key={f.id}
+                        className="cursor-pointer"
+                        onClick={() => {
+                          setRecibo(f);
+                          setReciboNuevo(false);
+                        }}
+                      >
+                        <TableCell className="font-mono font-medium">
+                          {f.numero_factura}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDateTime(f.fecha_emision)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {METODO_LABEL[f.metodo_pago]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCOP(f.total)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {historicoTotal === 0
+                  ? "0 resultados"
+                  : `Mostrando ${(page - 1) * PAGE_SIZE + 1}–${Math.min(
+                      page * PAGE_SIZE,
+                      historicoTotal
+                    )} de ${historicoTotal}`}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1 || historicoQ.isFetching}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <span className="min-w-[90px] text-center">
+                  Página {page} de {totalPaginas}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPaginas || historicoQ.isFetching}
+                  onClick={() => setPage((p) => Math.min(totalPaginas, p + 1))}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

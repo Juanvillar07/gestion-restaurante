@@ -9,6 +9,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ["react-day-picker", "@radix-ui/react-popover"],
+  },
   server: {
     host: "0.0.0.0",
     port: 5173,

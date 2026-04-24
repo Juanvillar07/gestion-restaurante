@@ -287,7 +287,7 @@ function AjusteDialog({
             <Input
               id="ai_cantidad"
               type="number"
-              step="0.01"
+              //step="0.01"
               min="0"
               autoFocus
               {...form.register("cantidad")}

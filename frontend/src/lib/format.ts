@@ -21,8 +21,13 @@ export function formatDateTime(value: string | Date): string {
 }
 
 const timeOnly = new Intl.DateTimeFormat("es-CO", { timeStyle: "short" });
+const timeWithSeconds = new Intl.DateTimeFormat("es-CO", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
 
-export function formatTime(value: string | Date): string {
+export function formatTime(value: string | Date, withSeconds = false): string {
   const d = typeof value === "string" ? new Date(value) : value;
-  return timeOnly.format(d);
+  return withSeconds ? timeWithSeconds.format(d) : timeOnly.format(d);
 }
