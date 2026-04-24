@@ -22,3 +22,8 @@ class FacturaOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class FacturaListOut(BaseModel):
+    items: list[FacturaOut]
+    total: int

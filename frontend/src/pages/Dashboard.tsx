@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { formatCOP, formatTime } from "@/lib/format";
 import { useAuth } from "@/context/AuthContext";
-import type { Factura } from "@/types/factura";
+import type { FacturasPaginadas } from "@/types/factura";
 import type { Pedido } from "@/types/pedido";
 import type { Mesa } from "@/types/mesa";
 import type { InventarioConProducto } from "@/types/inventario";
@@ -30,10 +30,10 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   const facturasHoy = useQuery({
-    queryKey: ["facturas", hoyISO()],
+    queryKey: ["facturas", "hoy", hoyISO()],
     queryFn: async () => {
-      const { data } = await api.get<Factura[]>("/api/v1/facturas", {
-        params: { fecha: hoyISO() },
+      const { data } = await api.get<FacturasPaginadas>("/api/v1/facturas", {
+        params: { fecha: hoyISO(), limit: 500 },
       });
       return data;
     },
@@ -65,10 +65,11 @@ export default function Dashboard() {
     },
   });
 
-  const totalVentas = (facturasHoy.data ?? []).reduce(
+  const totalVentas = (facturasHoy.data?.items ?? []).reduce(
     (acc, f) => acc + Number(f.total),
     0
   );
+  const countFacturasHoy = facturasHoy.data?.total ?? 0;
   const pedidosAbiertos = (pedidos.data ?? []).filter(
     (p) => p.estado === "abierto" || p.estado === "en_cocina" || p.estado === "servido"
   );
@@ -91,7 +92,7 @@ export default function Dashboard() {
           title="Ventas de hoy"
           icon={<DollarSign className="h-4 w-4" />}
           value={formatCOP(totalVentas)}
-          hint={`${facturasHoy.data?.length ?? 0} facturas`}
+          hint={`${countFacturasHoy} facturas`}
           loading={facturasHoy.isLoading}
         />
         <KpiCard

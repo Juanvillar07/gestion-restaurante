@@ -28,3 +28,8 @@ export interface Factura {
 export interface FacturaCreate {
   metodo_pago: MetodoPago;
 }
+
+export interface FacturasPaginadas {
+  items: Factura[];
+  total: number;
+}
