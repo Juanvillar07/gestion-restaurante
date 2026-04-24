@@ -20,9 +20,9 @@ export default function Cocina() {
   const { user } = useAuth();
   const [now, setNow] = useState(() => Date.now());
 
-  // Tick cada 30s para recalcular "hace X min" sin tener que recargar queries
+  // Tick cada 1s para mostrar reloj con segundos en vivo
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
+    const id = setInterval(() => setNow(Date.now()), 1_000);
     return () => clearInterval(id);
   }, []);
 
@@ -34,7 +34,7 @@ export default function Cocina() {
       });
       return data;
     },
-    refetchInterval: 8_000,
+    //refetchInterval: 8_000,
   });
 
   const mesasQ = useQuery({
@@ -100,7 +100,7 @@ export default function Cocina() {
         actions={
           <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
             <Clock className="h-4 w-4" />
-            {formatTime(new Date(now))}
+            {formatTime(new Date(now), true)}
           </div>
         }
       />

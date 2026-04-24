@@ -15,7 +15,7 @@ class TipoAjuste(str, Enum):
 class InventarioOut(BaseModel):
     id: int
     id_producto: int
-    cantidad: Decimal
+    cantidad: int
     stock_minimo: Decimal
     unidad: UnidadInventario
     updated_at: datetime
