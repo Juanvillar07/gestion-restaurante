@@ -32,7 +32,7 @@ import {
 import { PageHeader } from "@/components/PageHeader";
 import { ReciboFactura } from "@/components/ReciboFactura";
 import { api } from "@/lib/api";
-import { formatCOP, formatDateTime, formatTime } from "@/lib/format";
+import { formatCOP, formatDateTime } from "@/lib/format";
 import {
   METODOS_PAGO,
   type Factura,
