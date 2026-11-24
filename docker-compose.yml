@@ -48,14 +48,21 @@ services:
         condition: service_healthy
     networks:
       - rms_network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Aplica migraciones y crea el admin inicial (si no existe) antes de arrancar
+    command: sh -c "alembic upgrade head && python -m app.scripts.seed_admin && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # Etapa con Node (la final es nginx para producción y no tiene npm)
+      target: builder
     container_name: rms_frontend
     restart: unless-stopped
+    # La etapa builder define VITE_API_URL vacía y Vite prioriza las variables
+    # del proceso sobre frontend/.env, así que hay que pasarla explícitamente.
+    environment:
+      VITE_API_URL: http://localhost:8000
     ports:
       - "5173:5173"
     volumes:
